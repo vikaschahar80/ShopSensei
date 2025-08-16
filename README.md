@@ -91,7 +91,7 @@ A modern, AI-powered e-commerce platform built with React, TypeScript, and Expre
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone <paste my repo url>
    cd ShopSensei
    ```
 
