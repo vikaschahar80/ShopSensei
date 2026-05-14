@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShopAI - E-Commerce + AI Recommendations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#F59E0B',
+                        neutral: {
+                            800: '#1F2937',
+                            600: '#6B7280',
+                            50: '#F9FAFB'
+                        }
+                    },
+                    fontFamily: {
+                        'inter': ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        
+        .product-card:hover { transform: translateY(-2px); }
+        .cart-badge { animation: pulse 0.5s; }
+        .recommendation-item { scroll-snap-align: start; }
+        
+        /* Custom scrollbar for recommendation carousel */
+        .recommendation-scroll::-webkit-scrollbar { height: 6px; }
+        .recommendation-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+        .recommendation-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .recommendation-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Loading animation */
+        .loading-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* Smooth transitions */
+        .smooth-transition { transition: all 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="bg-neutral-50 text-neutral-800">
+    <!-- @COMPONENT: Header [navigation, search, cart] -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Top bar -->
+            <div class="flex items-center justify-between py-2 text-sm text-neutral-600">
+                <div class="hidden md:block">
+                    <span>Free shipping on orders over $75</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="hover:text-primary smooth-transition">
+                        <i class="fas fa-user mr-1"></i>Account
+                    </button>
+                    <button class="hover:text-primary smooth-transition">
+                        <i class="fas fa-heart mr-1"></i>Wishlist
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Main header -->
+            <div class="flex items-center justify-between py-4 border-t border-neutral-100">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-primary">
+                        <i class="fas fa-shopping-cart mr-2"></i>ShopAI
+                    </h1>
+                </div>
+                
+                <!-- Search bar with voice -->
+                <div class="flex-1 max-w-lg mx-8 relative" data-mock="true">
+                    <div class="relative">
+                        <input type="text" placeholder="Search products..." 
+                               class="w-full pl-4 pr-20 py-2 border border-neutral-200 rounded-full focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                               data-implementation="Implement search with autocomplete">
+                        <div class="absolute right-2 top-1/2 transform -translate-y-1/2 flex space-x-2">
+                            <button class="text-neutral-400 hover:text-primary smooth-transition" 
+                                    data-implementation="Voice search using Web Speech API">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="text-neutral-400 hover:text-primary smooth-transition">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Search suggestions dropdown (hidden by default) -->
+                    <div class="absolute top-full left-0 right-0 bg-white shadow-lg rounded-lg mt-1 hidden" data-implementation="Show/hide based on search input">
+                        <div class="p-2">
+                            <div class="text-xs text-neutral-500 mb-2">AI Suggestions</div>
+                            <div class="space-y-1" data-mock="true">
+                                <div class="p-2 hover:bg-neutral-50 rounded cursor-pointer">Wireless Headphones</div>
+                                <div class="p-2 hover:bg-neutral-50 rounded cursor-pointer">Smart Watch</div>
+                                <div class="p-2 hover:bg-neutral-50 rounded cursor-pointer">Laptop Stand</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cart and actions -->
+                <div class="flex items-center space-x-4">
+                    <button class="relative hover:text-primary smooth-transition" 
+                            data-event="click:toggleCart" data-implementation="Toggle cart sidebar">
+                        <i class="fas fa-shopping-cart text-lg"></i>
+                        <span class="absolute -top-2 -right-2 bg-accent text-white text-xs rounded-full px-1.5 py-0.5 cart-badge" 
+                              data-bind="cart.itemCount">3</span>
+                    </button>
+                    <div class="hidden md:flex items-center text-sm">
+                        <span class="text-neutral-600">Total: </span>
+                        <span class="font-semibold text-primary ml-1" data-bind="cart.total">$127.99</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Navigation -->
+            <nav class="border-t border-neutral-100">
+                <div class="flex space-x-8 py-3">
+                    <a href="#" class="text-primary font-medium">All Categories</a>
+                    <a href="#" class="text-neutral-600 hover:text-primary smooth-transition">Electronics</a>
+                    <a href="#" class="text-neutral-600 hover:text-primary smooth-transition">Fashion</a>
+                    <a href="#" class="text-neutral-600 hover:text-primary smooth-transition">Home & Garden</a>
+                    <a href="#" class="text-neutral-600 hover:text-primary smooth-transition">Sports</a>
+                    <a href="#" class="text-neutral-600 hover:text-primary smooth-transition">Books</a>
+                    <a href="#" class="text-accent font-medium">
+                        <i class="fas fa-magic mr-1"></i>AI Recommended
+                    </a>
+                </div>
+            </nav>
+        </div>
+    </header>
+    <!-- @END_COMPONENT: Header -->
+
+    <!-- @COMPONENT: HeroSection [banner, featured content] -->
+    <section class="bg-gradient-to-r from-primary to-blue-600 text-white py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h2 class="text-4xl md:text-5xl font-bold mb-4">
+                        Smart Shopping with AI
+                    </h2>
+                    <p class="text-xl text-blue-100 mb-6">
+                        Discover products tailored to your preferences with our intelligent recommendation system
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button class="bg-white text-primary px-6 py-3 rounded-full font-semibold hover:bg-neutral-50 smooth-transition">
+                            Shop Now
+                        </button>
+                        <button class="border border-white text-white px-6 py-3 rounded-full font-semibold hover:bg-white hover:text-primary smooth-transition">
+                            <i class="fas fa-play mr-2"></i>Watch Demo
+                        </button>
+                    </div>
+                </div>
+                <div class="relative">
+                    <!-- Modern shopping illustration placeholder -->
+                    <div class="bg-white/10 rounded-2xl p-8 backdrop-blur-sm">
+                        <div class="text-center">
+                            <i class="fas fa-robot text-6xl text-white/80 mb-4"></i>
+                            <div class="text-lg font-medium">AI-Powered Shopping</div>
+                            <div class="text-blue-100">Personalized recommendations</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: HeroSection -->
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- @COMPONENT: PersonalizedRecommendations [AI suggestions based on user behavior] -->
+        <section class="mb-12">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 class="text-2xl font-bold text-neutral-800 flex items-center">
+                        <i class="fas fa-magic text-accent mr-2"></i>
+                        Recommended for You
+                    </h3>
+                    <p class="text-neutral-600 mt-1">Based on your browsing and purchase history</p>
+                </div>
+                <button class="text-primary hover:text-blue-700 font-medium">
+                    View All <i class="fas fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+            
+            <!-- AI Recommendations Carousel -->
+            <div class="recommendation-scroll overflow-x-auto" style="scroll-behavior: smooth;">
+                <div class="flex space-x-4 pb-4" style="width: max-content;">
+                    <!-- @MAP: recommendedProducts.map(product => ( -->
+                    <div class="recommendation-item w-64 bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                        <!-- Modern wireless headphones in sleek black design on white background -->
+                        <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" 
+                             alt="Wireless Headphones" class="w-full h-48 object-cover rounded-t-xl">
+                        <div class="p-4">
+                            <div class="flex items-center text-xs text-accent font-medium mb-2">
+                                <i class="fas fa-star mr-1"></i>
+                                AI Match: 95%
+                            </div>
+                            <h4 class="font-semibold text-neutral-800 mb-1">Premium Wireless Headphones</h4>
+                            <p class="text-sm text-neutral-600 mb-3">Noise-canceling, 30hr battery</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-bold text-primary">$199.99</span>
+                                <button class="bg-primary text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                    Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-item w-64 bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                        <!-- Sleek smartwatch with black band displayed on white surface -->
+                        <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" 
+                             alt="Smart Watch" class="w-full h-48 object-cover rounded-t-xl">
+                        <div class="p-4">
+                            <div class="flex items-center text-xs text-accent font-medium mb-2">
+                                <i class="fas fa-star mr-1"></i>
+                                AI Match: 88%
+                            </div>
+                            <h4 class="font-semibold text-neutral-800 mb-1">Smart Fitness Watch</h4>
+                            <p class="text-sm text-neutral-600 mb-3">Health tracking, GPS enabled</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-bold text-primary">$299.99</span>
+                                <button class="bg-primary text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                    Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-item w-64 bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                        <!-- Modern adjustable laptop stand in aluminum on clean desk setup -->
+                        <img src="https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" 
+                             alt="Laptop Stand" class="w-full h-48 object-cover rounded-t-xl">
+                        <div class="p-4">
+                            <div class="flex items-center text-xs text-accent font-medium mb-2">
+                                <i class="fas fa-star mr-1"></i>
+                                AI Match: 82%
+                            </div>
+                            <h4 class="font-semibold text-neutral-800 mb-1">Ergonomic Laptop Stand</h4>
+                            <p class="text-sm text-neutral-600 mb-3">Adjustable height, aluminum</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-bold text-primary">$89.99</span>
+                                <button class="bg-primary text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                    Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation-item w-64 bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                        <!-- Professional wireless mouse in white/silver on modern desk -->
+                        <img src="https://images.unsplash.com/photo-1527814050087-3793815479db?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&h=200" 
+                             alt="Wireless Mouse" class="w-full h-48 object-cover rounded-t-xl">
+                        <div class="p-4">
+                            <div class="flex items-center text-xs text-accent font-medium mb-2">
+                                <i class="fas fa-star mr-1"></i>
+                                AI Match: 79%
+                            </div>
+                            <h4 class="font-semibold text-neutral-800 mb-1">Precision Wireless Mouse</h4>
+                            <p class="text-sm text-neutral-600 mb-3">Ergonomic design, long battery</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-lg font-bold text-primary">$49.99</span>
+                                <button class="bg-primary text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                    Add to Cart
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+            </div>
+        </section>
+        <!-- @END_COMPONENT: PersonalizedRecommendations -->
+
+        <!-- @COMPONENT: ProductFilters [category, price, rating filters] -->
+        <section class="mb-8">
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Filters Sidebar -->
+                <aside class="lg:w-64 flex-shrink-0">
+                    <div class="bg-white rounded-xl shadow-sm border border-neutral-100 p-6">
+                        <h4 class="font-semibold text-neutral-800 mb-4">Filters</h4>
+                        
+                        <!-- Categories -->
+                        <div class="mb-6">
+                            <h5 class="font-medium text-neutral-700 mb-3">Categories</h5>
+                            <div class="space-y-2" data-mock="true">
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="text-primary focus:ring-primary" checked>
+                                    <span class="ml-2 text-sm">Electronics (234)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm">Fashion (189)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm">Home & Garden (156)</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm">Sports (98)</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Price Range -->
+                        <div class="mb-6">
+                            <h5 class="font-medium text-neutral-700 mb-3">Price Range</h5>
+                            <div class="space-y-3">
+                                <div class="flex space-x-2">
+                                    <input type="number" placeholder="Min" class="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                                    <input type="number" placeholder="Max" class="w-full px-3 py-2 text-sm border border-neutral-200 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary">
+                                </div>
+                                <button class="w-full bg-primary text-white py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                    Apply
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Rating -->
+                        <div class="mb-6">
+                            <h5 class="font-medium text-neutral-700 mb-3">Rating</h5>
+                            <div class="space-y-2" data-mock="true">
+                                <label class="flex items-center">
+                                    <input type="radio" name="rating" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm flex items-center">
+                                        <div class="flex text-accent mr-2">
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                        </div>
+                                        5 stars (45)
+                                    </span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="rating" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm flex items-center">
+                                        <div class="flex text-accent mr-2">
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="far fa-star text-xs"></i>
+                                        </div>
+                                        4+ stars (89)
+                                    </span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="rating" class="text-primary focus:ring-primary">
+                                    <span class="ml-2 text-sm flex items-center">
+                                        <div class="flex text-accent mr-2">
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="fas fa-star text-xs"></i>
+                                            <i class="far fa-star text-xs"></i>
+                                            <i class="far fa-star text-xs"></i>
+                                        </div>
+                                        3+ stars (156)
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Clear Filters -->
+                        <button class="w-full text-neutral-600 border border-neutral-200 py-2 rounded-lg text-sm hover:bg-neutral-50 smooth-transition">
+                            Clear All Filters
+                        </button>
+                    </div>
+                </aside>
+                <!-- @END_COMPONENT: ProductFilters -->
+
+                <!-- @COMPONENT: ProductGrid [main product display with sorting] -->
+                <div class="flex-1">
+                    <!-- Sort and View Options -->
+                    <div class="flex items-center justify-between mb-6">
+                        <div class="flex items-center space-x-4">
+                            <span class="text-neutral-600">234 products found</span>
+                            <div class="h-4 border-l border-neutral-200"></div>
+                            <div class="flex items-center space-x-2">
+                                <span class="text-sm text-neutral-600">Sort by:</span>
+                                <select class="text-sm border border-neutral-200 rounded px-3 py-1 focus:ring-2 focus:ring-primary focus:border-primary">
+                                    <option>Relevance</option>
+                                    <option>Price: Low to High</option>
+                                    <option>Price: High to Low</option>
+                                    <option>Customer Rating</option>
+                                    <option>Newest First</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <button class="p-2 text-neutral-400 hover:text-primary smooth-transition">
+                                <i class="fas fa-th-large"></i>
+                            </button>
+                            <button class="p-2 text-primary">
+                                <i class="fas fa-th"></i>
+                            </button>
+                            <button class="p-2 text-neutral-400 hover:text-primary smooth-transition">
+                                <i class="fas fa-list"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- @MAP: products.map(product => ( -->
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- High-end mechanical keyboard with RGB lighting on desk -->
+                                <img src="https://images.unsplash.com/photo-1541140532154-b024d705b90a?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="Mechanical Keyboard" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                                <div class="absolute top-3 left-3 bg-secondary text-white text-xs px-2 py-1 rounded-full">
+                                    Free Shipping
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">RGB Mechanical Keyboard</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(128 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">Cherry MX switches, customizable RGB</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$149.99</span>
+                                        <span class="text-sm text-neutral-500 line-through ml-2">$199.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition"
+                                            data-event="click:addToCart" data-implementation="Add product to cart and update state">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- Modern gaming monitor with thin bezels displaying colorful graphics -->
+                                <img src="https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="Gaming Monitor" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                                <div class="absolute top-3 left-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                                    25% Off
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">4K Gaming Monitor</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="far fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(89 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">27" 4K, 144Hz refresh rate</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$399.99</span>
+                                        <span class="text-sm text-neutral-500 line-through ml-2">$529.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- Premium wireless mouse pad with LED edges on modern desk -->
+                                <img src="https://images.unsplash.com/photo-1612198188060-c7c2a3b66eae?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="Gaming Mouse Pad" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">RGB Gaming Mouse Pad</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(256 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">Large size, waterproof surface</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$29.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- Professional wireless webcam with ring light on desk setup -->
+                                <img src="https://images.unsplash.com/photo-1587614382346-4ec70e388b28?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="Webcam" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                                <div class="absolute top-3 left-3 bg-accent text-white text-xs px-2 py-1 rounded-full">
+                                    Bestseller
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">4K Webcam with Ring Light</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="far fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(67 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">Auto-focus, built-in microphone</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$79.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- Professional desk setup with modern desk lamp and organized workspace -->
+                                <img src="https://images.unsplash.com/photo-1586953208448-b95a79798f07?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="Desk Organizer" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">Bamboo Desk Organizer</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(143 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">Eco-friendly, multiple compartments</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$39.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="product-card bg-white rounded-xl shadow-sm border border-neutral-100 hover:shadow-md smooth-transition" data-mock="true">
+                            <div class="relative">
+                                <!-- Professional USB-C hub with multiple ports on modern desk -->
+                                <img src="https://images.unsplash.com/photo-1625842268584-8f3296236761?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" 
+                                     alt="USB Hub" class="w-full h-48 object-cover rounded-t-xl">
+                                <button class="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:bg-neutral-50 smooth-transition">
+                                    <i class="far fa-heart text-neutral-400 hover:text-red-500"></i>
+                                </button>
+                                <div class="absolute top-3 left-3 bg-secondary text-white text-xs px-2 py-1 rounded-full">
+                                    New Arrival
+                                </div>
+                            </div>
+                            <div class="p-4">
+                                <h4 class="font-semibold text-neutral-800 mb-2">USB-C Hub 7-in-1</h4>
+                                <div class="flex items-center mb-2">
+                                    <div class="flex text-accent mr-2">
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="fas fa-star text-xs"></i>
+                                        <i class="far fa-star text-xs"></i>
+                                    </div>
+                                    <span class="text-sm text-neutral-600">(34 reviews)</span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mb-3">HDMI, USB 3.0, SD card slots</p>
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <span class="text-lg font-bold text-primary">$59.99</span>
+                                    </div>
+                                    <button class="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 smooth-transition">
+                                        <i class="fas fa-cart-plus mr-1"></i>Add to Cart
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- @END_MAP )) -->
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="flex items-center justify-between mt-8">
+                        <span class="text-sm text-neutral-600">Showing 1-6 of 234 products</span>
+                        <div class="flex items-center space-x-1">
+                            <button class="px-3 py-2 text-neutral-400 hover:text-primary smooth-transition">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="px-3 py-2 bg-primary text-white rounded">1</button>
+                            <button class="px-3 py-2 text-neutral-600 hover:text-primary smooth-transition">2</button>
+                            <button class="px-3 py-2 text-neutral-600 hover:text-primary smooth-transition">3</button>
+                            <span class="px-3 py-2 text-neutral-400">...</span>
+                            <button class="px-3 py-2 text-neutral-600 hover:text-primary smooth-transition">15</button>
+                            <button class="px-3 py-2 text-neutral-600 hover:text-primary smooth-transition">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!-- @END_COMPONENT: ProductGrid -->
+    </main>
+
+    <!-- @COMPONENT: ShoppingCart [cart sidebar/modal] -->
+    <div id="cart-sidebar" class="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50" 
+         data-implementation="Toggle visibility based on cart state">
+        <div class="flex flex-col h-full">
+            <!-- Cart Header -->
+            <div class="flex items-center justify-between p-6 border-b">
+                <h3 class="text-lg font-semibold">Shopping Cart</h3>
+                <button class="text-neutral-400 hover:text-neutral-600" data-event="click:closeCart">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Cart Items -->
+            <div class="flex-1 overflow-y-auto p-6">
+                <div class="space-y-4" data-mock="true">
+                    <!-- @MAP: cartItems.map(item => ( -->
+                    <div class="flex items-center space-x-4 border-b border-neutral-100 pb-4">
+                        <!-- Product image thumbnail for wireless headphones -->
+                        <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?ixlib=rb-4.0.3&auto=format&fit=crop&w=80&h=80" 
+                             alt="Wireless Headphones" class="w-16 h-16 object-cover rounded-lg">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-neutral-800">Premium Wireless Headphones</h4>
+                            <p class="text-sm text-neutral-600">Black, Noise-Canceling</p>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center space-x-2">
+                                    <button class="w-6 h-6 bg-neutral-100 rounded text-sm hover:bg-neutral-200" data-event="click:decreaseQuantity">-</button>
+                                    <span class="text-sm" data-bind="item.quantity">1</span>
+                                    <button class="w-6 h-6 bg-neutral-100 rounded text-sm hover:bg-neutral-200" data-event="click:increaseQuantity">+</button>
+                                </div>
+                                <span class="font-semibold text-primary" data-bind="item.price">$199.99</span>
+                            </div>
+                        </div>
+                        <button class="text-neutral-400 hover:text-red-500" data-event="click:removeFromCart">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4 border-b border-neutral-100 pb-4">
+                        <!-- Product image thumbnail for smart watch -->
+                        <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?ixlib=rb-4.0.3&auto=format&fit=crop&w=80&h=80" 
+                             alt="Smart Watch" class="w-16 h-16 object-cover rounded-lg">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-neutral-800">Smart Fitness Watch</h4>
+                            <p class="text-sm text-neutral-600">Blue, GPS Enabled</p>
+                            <div class="flex items-center justify-between mt-2">
+                                <div class="flex items-center space-x-2">
+                                    <button class="w-6 h-6 bg-neutral-100 rounded text-sm hover:bg-neutral-200">-</button>
+                                    <span class="text-sm">2</span>
+                                    <button class="w-6 h-6 bg-neutral-100 rounded text-sm hover:bg-neutral-200">+</button>
+                                </div>
+                                <span class="font-semibold text-primary">$599.98</span>
+                            </div>
+                        </div>
+                        <button class="text-neutral-400 hover:text-red-500">
+                            <i class="fas fa-trash text-sm"></i>
+                        </button>
+                    </div>
+                    <!-- @END_MAP )) -->
+                </div>
+            </div>
+            
+            <!-- Cart Footer -->
+            <div class="border-t p-6 space-y-4">
+                <div class="flex items-center justify-between text-lg font-semibold">
+                    <span>Total:</span>
+                    <span class="text-primary" data-bind="cart.total">$799.97</span>
+                </div>
+                <button class="w-full bg-primary text-white py-3 rounded-lg font-semibold hover:bg-blue-700 smooth-transition"
+                        data-event="click:proceedToCheckout" data-implementation="Navigate to checkout flow">
+                    Proceed to Checkout
+                </button>
+                <button class="w-full border border-neutral-200 text-neutral-600 py-3 rounded-lg font-semibold hover:bg-neutral-50 smooth-transition">
+                    Continue Shopping
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: ShoppingCart -->
+
+    <!-- @COMPONENT: AdminDashboard [product management, analytics] -->
+    <div id="admin-dashboard" class="hidden fixed inset-0 bg-neutral-800 bg-opacity-50 z-50" data-implementation="Show/hide based on admin access">
+        <div class="bg-white w-full max-w-6xl mx-auto mt-8 rounded-xl shadow-2xl max-h-screen overflow-hidden">
+            <div class="flex">
+                <!-- Admin Sidebar -->
+                <aside class="w-64 bg-neutral-800 text-white">
+                    <div class="p-6 border-b border-neutral-700">
+                        <h3 class="text-lg font-semibold">Admin Panel</h3>
+                    </div>
+                    <nav class="p-4">
+                        <div class="space-y-2">
+                            <a href="#" class="flex items-center px-3 py-2 bg-primary rounded text-white">
+                                <i class="fas fa-chart-bar mr-3"></i>Analytics
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-neutral-300 hover:bg-neutral-700 rounded">
+                                <i class="fas fa-box mr-3"></i>Products
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-neutral-300 hover:bg-neutral-700 rounded">
+                                <i class="fas fa-shopping-cart mr-3"></i>Orders
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-neutral-300 hover:bg-neutral-700 rounded">
+                                <i class="fas fa-users mr-3"></i>Customers
+                            </a>
+                            <a href="#" class="flex items-center px-3 py-2 text-neutral-300 hover:bg-neutral-700 rounded">
+                                <i class="fas fa-robot mr-3"></i>AI Insights
+                            </a>
+                        </div>
+                    </nav>
+                </aside>
+                
+                <!-- Admin Content -->
+                <main class="flex-1 overflow-y-auto max-h-screen">
+                    <div class="p-8">
+                        <!-- Close Button -->
+                        <div class="flex justify-end mb-4">
+                            <button class="text-neutral-400 hover:text-neutral-600" data-event="click:closeAdmin">
+                                <i class="fas fa-times text-xl"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Analytics Dashboard -->
+                        <div class="mb-8">
+                            <h2 class="text-2xl font-bold mb-6">Analytics Dashboard</h2>
+                            
+                            <!-- KPI Cards -->
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8" data-mock="true">
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-neutral-600">Total Sales</p>
+                                            <p class="text-2xl font-bold text-primary">$45,231</p>
+                                            <p class="text-xs text-secondary">+12% this month</p>
+                                        </div>
+                                        <i class="fas fa-dollar-sign text-3xl text-primary opacity-20"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-neutral-600">Orders</p>
+                                            <p class="text-2xl font-bold text-primary">1,234</p>
+                                            <p class="text-xs text-secondary">+8% this month</p>
+                                        </div>
+                                        <i class="fas fa-shopping-cart text-3xl text-primary opacity-20"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-neutral-600">Customers</p>
+                                            <p class="text-2xl font-bold text-primary">2,567</p>
+                                            <p class="text-xs text-secondary">+15% this month</p>
+                                        </div>
+                                        <i class="fas fa-users text-3xl text-primary opacity-20"></i>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-neutral-600">AI Accuracy</p>
+                                            <p class="text-2xl font-bold text-accent">94.2%</p>
+                                            <p class="text-xs text-secondary">+2% this month</p>
+                                        </div>
+                                        <i class="fas fa-robot text-3xl text-accent opacity-20"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Charts Placeholder -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <h3 class="font-semibold mb-4">Sales Trend</h3>
+                                    <div class="h-64 bg-neutral-50 rounded-lg flex items-center justify-center" data-implementation="Implement with Chart.js or similar">
+                                        <div class="text-center text-neutral-400">
+                                            <i class="fas fa-chart-line text-4xl mb-2"></i>
+                                            <p>Sales Chart</p>
+                                            <p class="text-sm">Last 30 days</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                                    <h3 class="font-semibold mb-4">Top Products</h3>
+                                    <div class="space-y-3" data-mock="true">
+                                        <div class="flex items-center justify-between py-2 border-b border-neutral-100">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 bg-primary rounded text-white text-sm flex items-center justify-center mr-3">1</div>
+                                                <span class="text-sm">Wireless Headphones</span>
+                                            </div>
+                                            <span class="text-sm font-medium">$12,450</span>
+                                        </div>
+                                        <div class="flex items-center justify-between py-2 border-b border-neutral-100">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 bg-secondary rounded text-white text-sm flex items-center justify-center mr-3">2</div>
+                                                <span class="text-sm">Gaming Monitor</span>
+                                            </div>
+                                            <span class="text-sm font-medium">$8,900</span>
+                                        </div>
+                                        <div class="flex items-center justify-between py-2">
+                                            <div class="flex items-center">
+                                                <div class="w-8 h-8 bg-accent rounded text-white text-sm flex items-center justify-center mr-3">3</div>
+                                                <span class="text-sm">Mechanical Keyboard</span>
+                                            </div>
+                                            <span class="text-sm font-medium">$6,700</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Recent Orders Table -->
+                        <div class="bg-white border border-neutral-200 rounded-xl p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-semibold">Recent Orders</h3>
+                                <button class="text-primary hover:text-blue-700 text-sm font-medium">View All</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full" data-mock="true">
+                                    <thead class="bg-neutral-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Order ID</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Customer</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Amount</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Status</th>
+                                            <th class="px-4 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-neutral-200">
+                                        <tr>
+                                            <td class="px-4 py-3 text-sm">#ORD-001</td>
+                                            <td class="px-4 py-3 text-sm">John Smith</td>
+                                            <td class="px-4 py-3 text-sm font-medium">$299.99</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 text-xs bg-secondary text-white rounded-full">Shipped</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-neutral-600">2024-01-15</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-3 text-sm">#ORD-002</td>
+                                            <td class="px-4 py-3 text-sm">Sarah Johnson</td>
+                                            <td class="px-4 py-3 text-sm font-medium">$149.99</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 text-xs bg-accent text-white rounded-full">Processing</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-neutral-600">2024-01-15</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="px-4 py-3 text-sm">#ORD-003</td>
+                                            <td class="px-4 py-3 text-sm">Mike Davis</td>
+                                            <td class="px-4 py-3 text-sm font-medium">$89.99</td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-1 text-xs bg-primary text-white rounded-full">Delivered</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-neutral-600">2024-01-14</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: AdminDashboard -->
+
+    <!-- @COMPONENT: Footer [links, newsletter, social] -->
+    <footer class="bg-neutral-800 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Company Info -->
+                <div>
+                    <h4 class="text-xl font-bold mb-4 flex items-center">
+                        <i class="fas fa-shopping-cart text-primary mr-2"></i>ShopAI
+                    </h4>
+                    <p class="text-neutral-300 mb-4">
+                        Experience the future of shopping with AI-powered recommendations tailored just for you.
+                    </p>
+                    <div class="flex space-x-4">
+                        <button class="text-neutral-300 hover:text-white smooth-transition">
+                            <i class="fab fa-facebook text-xl"></i>
+                        </button>
+                        <button class="text-neutral-300 hover:text-white smooth-transition">
+                            <i class="fab fa-twitter text-xl"></i>
+                        </button>
+                        <button class="text-neutral-300 hover:text-white smooth-transition">
+                            <i class="fab fa-instagram text-xl"></i>
+                        </button>
+                        <button class="text-neutral-300 hover:text-white smooth-transition">
+                            <i class="fab fa-linkedin text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Quick Links -->
+                <div>
+                    <h5 class="font-semibold mb-4">Quick Links</h5>
+                    <div class="space-y-2">
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">About Us</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Contact</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">FAQ</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Shipping Info</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Returns</a>
+                    </div>
+                </div>
+                
+                <!-- Categories -->
+                <div>
+                    <h5 class="font-semibold mb-4">Categories</h5>
+                    <div class="space-y-2">
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Electronics</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Fashion</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Home & Garden</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Sports</a>
+                        <a href="#" class="block text-neutral-300 hover:text-white smooth-transition">Books</a>
+                    </div>
+                </div>
+                
+                <!-- Newsletter -->
+                <div>
+                    <h5 class="font-semibold mb-4">Stay Updated</h5>
+                    <p class="text-neutral-300 text-sm mb-4">
+                        Subscribe for AI-powered deals and personalized recommendations.
+                    </p>
+                    <div class="space-y-3">
+                        <input type="email" placeholder="Enter your email" 
+                               class="w-full px-4 py-2 bg-neutral-700 border border-neutral-600 rounded-lg text-white placeholder-neutral-400 focus:ring-2 focus:ring-primary focus:border-primary"
+                               data-implementation="Email subscription functionality">
+                        <button class="w-full bg-primary text-white py-2 rounded-lg hover:bg-blue-700 smooth-transition">
+                            Subscribe
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="border-t border-neutral-700 mt-8 pt-8 flex flex-col md:flex-row items-center justify-between">
+                <p class="text-neutral-400 text-sm">&copy; 2024 ShopAI. All rights reserved.</p>
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="text-neutral-400 hover:text-white text-sm smooth-transition">Privacy Policy</a>
+                    <a href="#" class="text-neutral-400 hover:text-white text-sm smooth-transition">Terms of Service</a>
+                    <a href="#" class="text-neutral-400 hover:text-white text-sm smooth-transition">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- @END_COMPONENT: Footer -->
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-white bg-opacity-90 z-50 flex items-center justify-center" 
+         data-implementation="Show during API calls and data loading">
+        <div class="text-center">
+            <div class="loading-spinner w-12 h-12 border-4 border-neutral-200 border-t-primary rounded-full mx-auto mb-4"></div>
+            <p class="text-neutral-600">Loading...</p>
+        </div>
+    </div>
+
+    <!-- Success/Error Toast Notifications -->
+    <div id="toast-container" class="fixed top-4 right-4 space-y-2 z-50" data-implementation="Show success/error messages">
+        <!-- Toast messages will be dynamically inserted here -->
+    </div>
+
+    <script>
+    // TODO: Implement business logic, API calls, and state management
+    
+    (function() {
+        // Mock cart state
+        let cartState = {
+            items: [],
+            itemCount: 3,
+            total: 799.97
+        };
+        
+        // Mock user browsing data for AI recommendations
+        let userBehavior = {
+            viewed: ['electronics', 'computers', 'gaming'],
+            purchased: ['headphones', 'keyboard'],
+            preferences: ['tech', 'gaming', 'productivity']
+        };
+        
+        // Toggle cart sidebar
+        function toggleCart() {
+            const cartSidebar = document.getElementById('cart-sidebar');
+            cartSidebar.classList.toggle('translate-x-full');
+            // TODO: Load cart data from API
+        }
+        
+        // Toggle admin dashboard
+        function toggleAdmin() {
+            const adminDashboard = document.getElementById('admin-dashboard');
+            adminDashboard.classList.toggle('hidden');
+            // TODO: Verify admin authentication
+        }
+        
+        // Show loading state
+        function showLoading() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        }
+        
+        // Hide loading state
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+        
+        // Add to cart functionality
+        function addToCart(productId, productData) {
+            showLoading();
+            
+            // Simulate API call
+            setTimeout(() => {
+                // Update cart badge animation
+                const cartBadge = document.querySelector('.cart-badge');
+                cartBadge.classList.add('cart-badge');
+                
+                // Show success toast
+                showToast('Product added to cart!', 'success');
+                
+                hideLoading();
+                
+                // TODO: Make actual API call to add item to cart
+                // TODO: Update cart state and UI
+            }, 500);
+        }
+        
+        // Generate AI recommendations
+        function generateRecommendations() {
+            // TODO: Implement collaborative filtering algorithm
+            // TODO: Analyze user behavior patterns
+            // TODO: Call machine learning API for personalized suggestions
+            console.log('Generating AI recommendations based on:', userBehavior);
+        }
+        
+        // Voice search functionality
+        function initVoiceSearch() {
+            const voiceButton = document.querySelector('[data-implementation*="Voice search"]');
+            if (voiceButton && 'webkitSpeechRecognition' in window) {
+                voiceButton.addEventListener('click', () => {
+                    // TODO: Implement Web Speech API for voice search
+                    console.log('Voice search initiated');
+                });
+            }
+        }
+        
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `bg-white shadow-lg rounded-lg p-4 border-l-4 ${
+                type === 'success' ? 'border-secondary' : 
+                type === 'error' ? 'border-red-500' : 
+                'border-primary'
+            } transform transition-transform duration-300 translate-x-full`;
+            
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${
+                        type === 'success' ? 'check-circle text-secondary' : 
+                        type === 'error' ? 'exclamation-circle text-red-500' : 
+                        'info-circle text-primary'
+                    } mr-3"></i>
+                    <p class="text-neutral-800">${message}</p>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => toastContainer.removeChild(toast), 300);
+            }, 3000);
+        }
+        
+        // Stripe payment integration
+        function initPaymentSystem() {
+            // TODO: Initialize Stripe or PayPal SDK
+            // TODO: Set up secure payment processing
+            // TODO: Handle payment success/failure callbacks
+            console.log('Payment system initialized');
+        }
+        
+        // Real-time inventory tracking
+        function trackInventory() {
+            // TODO: Implement WebSocket connection for real-time updates
+            // TODO: Update product availability dynamically
+            console.log('Inventory tracking initialized');
+        }
+        
+        // Order tracking system
+        function trackOrders() {
+            // TODO: Implement real-time order status updates
+            // TODO: Integrate with shipping APIs
+            console.log('Order tracking system initialized');
+        }
+        
+        // Initialize application
+        function initApp() {
+            generateRecommendations();
+            initVoiceSearch();
+            initPaymentSystem();
+            trackInventory();
+            trackOrders();
+            
+            // Event listeners for demo purposes
+            document.addEventListener('click', (e) => {
+                if (e.target.closest('[data-event*="toggleCart"]')) {
+                    toggleCart();
+                }
+                if (e.target.closest('[data-event*="addToCart"]')) {
+                    addToCart();
+                }
+                if (e.target.closest('[data-event*="closeCart"]')) {
+                    toggleCart();
+                }
+                if (e.target.closest('[data-event*="closeAdmin"]')) {
+                    toggleAdmin();
+                }
+            });
+            
+            // Demo admin access (remove in production)
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'a') {
+                    e.preventDefault();
+                    toggleAdmin();
+                }
+            });
+        }
+        
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+        
+    })();
+    </script>
+</body>
+</html>
